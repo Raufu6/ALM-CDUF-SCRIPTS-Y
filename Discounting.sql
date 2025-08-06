@@ -34,7 +34,7 @@ SELECT
 'Y' bullet_boolen,
 sysdate system_date,
 (select db_stat_date-1 from tbaadm.gct)db_stat_date,
-F.bill_id ||'_' ||to_char(VFD_BOD_DATE,'ddmmyyyy')||'_'||TRAN_ID bill_id,
+F.bill_id ||'_' ||to_char(VFD_BOD_DATE,'ddmmyyyy')||'_'||TRAN_ID || '_'|| EVENT_NUM bill_id,
 H.BILL_LIAB + H.DISC_INT_AMT Loan_balance,
 abs(H.INTEREST_RATE)INTEREST_RATE,
 TO_CHAR(i.peg_review_date,'MM/DD/YYYY') next_repricing_date,
