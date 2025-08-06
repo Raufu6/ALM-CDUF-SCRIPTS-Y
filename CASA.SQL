@@ -36,3 +36,4 @@ and ACCT_OPN_DATE <= (select db_stat_date-1 from tbaadm.gct)
 
 
 
+
