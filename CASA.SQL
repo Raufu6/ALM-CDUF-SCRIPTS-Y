@@ -33,7 +33,3 @@ and Clr_bal_amt !=0
 and schm_type ='CAA'
 and ACCT_OPN_DATE <= (select db_stat_date-1 from tbaadm.gct)
 )order by 1 
-
-
-
-
