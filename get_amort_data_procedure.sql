@@ -19,7 +19,7 @@ CREATE OR REPLACE FUNCTION CUSTOM.get_amort_data RETURN CLOB IS
     v_action                      VARCHAR2(100) := 'NEW';
     v_comment                     VARCHAR2(100) := '';
     v_running_balance             NUMBER(20, 4);
-    v_header                 CLOB := 'Action,ExternalRefId,TradeId,TradeCounterParty,TradeBook,TradeDateTime,TraderName,SalesPerson,Comment,ProductType,LegType,PayRec,StartDate,EndDate,OpenTermB,BehavioralMaturity,NoticeDays,Currency,Amount,PrincipalExchangeInitialB,PrincipalExchangeFinalB,Rate,FloatingRateReset,RateIndex,RateIndexSource,Tenor,Spread,DayCountConvention,DateRollConvention,PaymentFrequency,DiscountMethod,CouponPaymentAtEndB,AccrualPeriodAdjustment,IncludeFirstB,IncludeLastB,RollDay,HolidayCode,SettlementHolidays,AmountsRounding,RatesRounding,RatesRoundingDecPlaces,IgnoreFullCouponForNotionalAmort,SecuredFundingB,StubPeriod,SpecificFirstDate,SpecificLastDate,CustomStubTolerance,InterestCompounding,InterestCompoundingMethod,CpnHoliday,InterestCompoundingFrequency,ResetLag,CapitalizeB,keyword.1_MM Classification,PrincipalStructure_AmortizationType';
+    v_header                 CLOB := 'Action,ExternalRefId,TradeId,TradeCounterParty,TradeBook,TradeDateTime,TraderName,SalesPerson,Comment,ProductType,LegType,PayRec,StartDate,EndDate,OpenTermB,BehavioralMaturity,NoticeDays,Currency,Amount,PrincipalExchangeInitialB,PrincipalExchangeFinalB,Rate,FloatingRateReset,RateIndex,RateIndexSource,Tenor,Spread,DayCountConvention,DateRollConvention,PaymentFrequency,DiscountMethod,CouponPaymentAtEndB,AccrualPeriodAdjustment,IncludeFirstB,IncludeLastB,RollDay,HolidayCode,SettlementHolidays,AmountsRounding,RatesRounding,RatesRoundingDecPlaces,IgnoreFullCouponForNotionalAmort,SecuredFundingB,StubPeriod,SpecificFirstDate,SpecificLastDate,CustomStubTolerance,InterestCompounding,InterestCompoundingMethod,CpnHoliday,InterestCompoundingFrequency,ResetLag,CapitalizeB,keyword.1_MM Classification,keyword.FinacleCptyCIFId,keyword.FinacleCptyName,keyword.FinacleCptyType,PrincipalStructure_AmortizationType';
     v_header2   CLOB := ',AmortizationSchedule_AmortizationDate,AmortizationSchedule_AmortizationAmount';-- || chr(10)
     v_header3   CLOB := '';
     result_output               CLOB := '';
@@ -64,6 +64,7 @@ CREATE OR REPLACE FUNCTION CUSTOM.get_amort_data RETURN CLOB IS
         demand_date;
 
     CURSOR loan_cursor IS
+     
      SELECT
         (
             SELECT
@@ -225,6 +226,25 @@ CREATE OR REPLACE FUNCTION CUSTOM.get_amort_data RETURN CLOB IS
         rateindex,
         rateindexsource,
         Tenor
+        , Corp.corp_key FinacleCptyCIFId
+,corp.corporate_name FinacleCptyName,
+--,UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE'))legalentity_type
+
+
+
+CASE 
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'MINISTRY' THEN 'SOVEREIGN'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'LIMITED LIABILITY COMPANY' THEN 'NON-FINANCIAL CORPORATE'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'PRIVATE COMPANY LIMITED BY SHARES (LTD)' THEN 'NON-FINANCIAL CORPORATE'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'PARASTATAL' THEN 'PUBLIC SECTOR ENTITY'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'PRIVATE SECTOR ENTITY' THEN 'NON-FINANCIAL CORPORATE'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'MULTILATERAL' THEN 'MULTILATERAL DEVELOPMENT BANK'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'NON-GOVERNMENTAL FINANCIAL INSTITUTION' THEN 'FINANCIAL INSTITUTION'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'PUBLIC LIMITED COMPANY (PLC)' THEN 'NON-FINANCIAL CORPORATE'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'SOLE PROPRIETORSHIP' THEN 'NON-FINANCIAL CORPORATE'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'TRUST' THEN 'NON-FINANCIAL CORPORATE'
+    ELSE 'UNKNOWN' -- Default value for unmatched cases
+END AS FinacleCptyType
     FROM
              tbaadm.lrs
         JOIN tbaadm.lam ON lam.acid = lrs.acid
@@ -233,6 +253,7 @@ CREATE OR REPLACE FUNCTION CUSTOM.get_amort_data RETURN CLOB IS
         JOIN tbaadm.itc ON gam.acid = itc.entity_id
         JOIN tbaadm.itc_pnl    p ON p.entity_id = itc.entity_id
         JOIN tbaadm.eab ON gam.acid = eab.acid
+        join crmuser.corporate corp on gam.cif_id =corp.corp_key
         LEFT JOIN rateindex_mapping r ON gam.acct_crncy_code = r.currency
                                          AND itc.int_tbl_code = r.BASE_RATE
     WHERE
@@ -1022,7 +1043,7 @@ BEGIN
 
     V_counter := v_idx ;
      else V_counter := V_counter;
-      v_header   := 'Action,ExternalRefId,TradeId,TradeCounterParty,TradeBook,TradeDateTime,TraderName,SalesPerson,Comment,ProductType,LegType,PayRec,StartDate,EndDate,OpenTermB,BehavioralMaturity,NoticeDays,Currency,Amount,PrincipalExchangeInitialB,PrincipalExchangeFinalB,Rate,FloatingRateReset,RateIndex,RateIndexSource,Tenor,Spread,DayCountConvention,DateRollConvention,PaymentFrequency,DiscountMethod,CouponPaymentAtEndB,AccrualPeriodAdjustment,IncludeFirstB,IncludeLastB,RollDay,HolidayCode,SettlementHolidays,AmountsRounding,RatesRounding,RatesRoundingDecPlaces,IgnoreFullCouponForNotionalAmort,SecuredFundingB,StubPeriod,SpecificFirstDate,SpecificLastDate,CustomStubTolerance,InterestCompounding,InterestCompoundingMethod,CpnHoliday,InterestCompoundingFrequency,ResetLag,CapitalizeB,keyword.1_MM Classification,PrincipalStructure_AmortizationType';
+      v_header   := 'Action,ExternalRefId,TradeId,TradeCounterParty,TradeBook,TradeDateTime,TraderName,SalesPerson,Comment,ProductType,LegType,PayRec,StartDate,EndDate,OpenTermB,BehavioralMaturity,NoticeDays,Currency,Amount,PrincipalExchangeInitialB,PrincipalExchangeFinalB,Rate,FloatingRateReset,RateIndex,RateIndexSource,Tenor,Spread,DayCountConvention,DateRollConvention,PaymentFrequency,DiscountMethod,CouponPaymentAtEndB,AccrualPeriodAdjustment,IncludeFirstB,IncludeLastB,RollDay,HolidayCode,SettlementHolidays,AmountsRounding,RatesRounding,RatesRoundingDecPlaces,IgnoreFullCouponForNotionalAmort,SecuredFundingB,StubPeriod,SpecificFirstDate,SpecificLastDate,CustomStubTolerance,InterestCompounding,InterestCompoundingMethod,CpnHoliday,InterestCompoundingFrequency,ResetLag,CapitalizeB,keyword.1_MM Classification,keyword.FinacleCptyCIFId,keyword.FinacleCptyName,keyword.FinacleCptyType,PrincipalStructure_AmortizationType';
  BEGIN
    FOR i IN 1..V_counter - 2 LOOP
       v_header := v_header || v_header2;
@@ -1044,7 +1065,7 @@ END;
                              || ','
                              || ''
                              || ','
-                             || v_acct_name
+                             || 'FINACLE_CBS_COUNTERPARTY'
                              || ','
                              || 'CBS_LOANS_DEPOSITS'
                              || ','
@@ -1209,7 +1230,7 @@ END;
                              || ','
                              || 'Finacle'
                              || ','
-                             ||
+                             ||rec.FinacleCptyCIFId ||','||REPLACE(rec.FinacleCptyName, ',', '-')||','||rec.FinacleCptyType || ',' ||
                 CASE
                     WHEN rec.lr_freq_type_desc = 'Bullet' THEN
                         'Bullet'
@@ -1240,3 +1261,7 @@ END get_amort_data;
 
 --GRANT ALL ON CUSTOM.get_amort_data TO PUBLIC
 /
+
+
+--SELECT custom.get_amort_data() FROM dual;
+

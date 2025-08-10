@@ -2,7 +2,7 @@ with cte as (
 select (select db_stat_date-1 from tbaadm.gct) StartDate,
 (select add_months(db_stat_date,84) from tbaadm.gct)EndDate,
 FORACID, ACCT_NAME, SCHM_CODE, CLR_BAL_AMT, PRINCIPAL_OUTS, INTEREST_OVERDUES,
-PENAL_INT_OUTS, INDEM_DEFFERED_AMT, PIDEM_DEFFERED_AMT, PRDEM_DEFFERED_AMT,ACCT_OPN_DATE,acct_CRNCY_CODE,HOLIDAY_CALENDAR,rate
+PENAL_INT_OUTS, INDEM_DEFFERED_AMT, PIDEM_DEFFERED_AMT, PRDEM_DEFFERED_AMT,ACCT_OPN_DATE,acct_CRNCY_CODE,HOLIDAY_CALENDAR,rate,FINACLECPTYCIFID, FINACLECPTYNAME, FINACLECPTYTYPE
 from (
 
 select foracid,acct_name,schm_code,clr_bal_amt,ACCT_OPN_DATE,acct_CRNCY_CODE,HOLIDAY_CALENDAR,(select nvl((select PREF_RATE_PCNT from tbaadm.ITCP where ENTITY_ID=gam.acid and ENTITY_TYPE='ACCNT'
@@ -189,23 +189,42 @@ and DMD_EFF_DATE <=(select db_stat_date-1 from tbaadm.gct )
  AND DMD_FLOW_ID IN ('PRDEM')
  AND DEL_FLG = 'N'
  AND LDT.ACID = GAM.ACID), 0), 2) AS PRDEM_DEFFERED_AMT
+, Corp.corp_key FinacleCptyCIFId
+,corp.corporate_name FinacleCptyName,
+--,UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE'))legalentity_type
 
-from tbaadm.gam,tbaadm.lam ,curr_Hol_Mapping c
+CASE 
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'MINISTRY' THEN 'SOVEREIGN'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'LIMITED LIABILITY COMPANY' THEN 'NON-FINANCIAL CORPORATE'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'PRIVATE COMPANY LIMITED BY SHARES (LTD)' THEN 'NON-FINANCIAL CORPORATE'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'PARASTATAL' THEN 'PUBLIC SECTOR ENTITY'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'PRIVATE SECTOR ENTITY' THEN 'NON-FINANCIAL CORPORATE'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'MULTILATERAL' THEN 'MULTILATERAL DEVELOPMENT BANK'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'NON-GOVERNMENTAL FINANCIAL INSTITUTION' THEN 'FINANCIAL INSTITUTION'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'PUBLIC LIMITED COMPANY (PLC)' THEN 'NON-FINANCIAL CORPORATE'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'SOLE PROPRIETORSHIP' THEN 'NON-FINANCIAL CORPORATE'
+    WHEN UPPER(custom.all_report_functions.get_crm_clang_desc(corp.cust_const,'CONSTITUTION_CODE')) = 'TRUST' THEN 'NON-FINANCIAL CORPORATE'
+    ELSE 'UNKNOWN' -- Default value for unmatched cases
+END AS FinacleCptyType
+
+from tbaadm.gam,tbaadm.lam ,curr_Hol_Mapping c ,crmuser.corporate corp
 where gam.acid =lam.acid
 and gam.acct_CRNCY_CODE =c.CURRENY
+and gam.cif_id =corp.corp_key
 and gam.schm_code !='900'
  and gam.ENTITY_CRE_FLG ='Y'
  and PAYOFF_FLG !='Y'
 --and gam.foracid in ( '200001001300001' )
 and  gam.acid not in (select acid from tbaadm.gam where ACCT_CLS_DATE <=(select db_stat_date-1 from tbaadm.gct ) and schm_type ='CLA')
 and  gam.acid not in (select acid from tbaadm.cot )
+
 ))
-select 'Action'||','||'ExternalRefId'||','||'TradeId'||','||'TradeCounterParty'||','||'TradeBook'||','||'TradeDateTime'||','||'TraderName'||','||'SalesPerson'||','||'Comment'||','||'ProductType'||','||'ProductSubType'||','||'DiscountMethod'||','||'LegType'||','||'PayRec'||','||'StartDate'||','||'EndDate'||','||'OpenTermB'||','||'BehavioralMaturity'||','||'NoticeDays'||','||'Currency'||','||'Amount'||','||'PrincipalExchangeInitialB'||','||'PrincipalExchangeFinalB'||','||'Rate'||','||'FloatingRateReset'||','||'RateIndex'||','||'RateIndexSource'||','||'Tenor'||','||'Spread'||','||'DayCountConvention'||','||'DateRollConvention'||','||'PaymentFrequency'||','||'DiscountMethod'||','||'CouponPaymentAtEndB'||','||'AccrualPeriodAdjustment'||','||'IncludeFirstB'||','||'IncludeLastB'||','||'RollDay'||','||'HolidayCode'||','||'SettlementHolidays'||','||'AmountsRounding'||','||'RatesRounding'||','||'RatesRoundingDecPlaces'||','||'IgnoreFullCouponForNotionalAmort'||','||'SecuredFundingB'||','||'StubPeriod'||','||'SpecificFirstDate'||','||'SpecificLastDate'||','||'CustomStubTolerance'||','||'InterestCompounding'||','||'InterestCompoundingMethod'||','||'CpnHoliday'||','||'InterestCompoundingFrequency'||','||'ResetLag'||','||'CapitalizeB'||','||'keyword.1_MM Classification'||','||'PrincipalStructure_AmortizationType'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount' data
+SELECT CAST ( 'Action'||','||'ExternalRefId'||','||'TradeId'||','||'TradeCounterParty'||','||'TradeBook'||','||'TradeDateTime'||','||'TraderName'||','||'SalesPerson'||','||'Comment'||','||'ProductType'||','||'ProductSubType'||','||'DiscountMethod'||','||'LegType'||','||'PayRec'||','||'StartDate'||','||'EndDate'||','||'OpenTermB'||','||'BehavioralMaturity'||','||'NoticeDays'||','||'Currency'||','||'Amount'||','||'PrincipalExchangeInitialB'||','||'PrincipalExchangeFinalB'||','||'Rate'||','||'FloatingRateReset'||','||'RateIndex'||','||'RateIndexSource'||','||'Tenor'||','||'Spread'||','||'DayCountConvention'||','||'DateRollConvention'||','||'PaymentFrequency'||','||'DiscountMethod'||','||'CouponPaymentAtEndB'||','||'AccrualPeriodAdjustment'||','||'IncludeFirstB'||','||'IncludeLastB'||','||'RollDay'||','||'HolidayCode'||','||'SettlementHolidays'||','||'AmountsRounding'||','||'RatesRounding'||','||'RatesRoundingDecPlaces'||','||'IgnoreFullCouponForNotionalAmort'||','||'SecuredFundingB'||','||'StubPeriod'||','||'SpecificFirstDate'||','||'SpecificLastDate'||','||'CustomStubTolerance'||','||'InterestCompounding'||','||'InterestCompoundingMethod'||','||'CpnHoliday'||','||'InterestCompoundingFrequency'||','||'ResetLag'||','||'CapitalizeB'||','||'keyword.1_MM Classification'||','||'keyword.FinacleCptyCIFId'||','||'keyword.FinacleCptyName'||','||'keyword.FinacleCptyType'||','||'PrincipalStructure_AmortizationType'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount'||','||'AmortizationSchedule_AmortizationDate'||','||'AmortizationSchedule_AmortizationAmount' as VARCHAR2(4000 CHAR))   data
 from dual
    union
-SELECT
-'NEW'   ||','||foracid || event ||','||NULL ||','|| REPLACE(ACCT_NAME, ',', '-') ||','||'CBS_LOANS_DEPOSITS' ||','||TO_CHAR(ACCT_OPN_DATE, 'YYYYMMDD') ||','||'Finacle' ||','|| 'Finacle' ||','||'Bullect Fixed' ||','||'StructuredFlows' ||','||null ||','|| null ||','||'FIXED' ||','||'PAY' ||','||TO_CHAR(ACCT_OPN_DATE, 'YYYYMMDD')||','||TO_CHAR(Enddate, 'YYYYMMDD')||','||NULL||','||NULL||','||NULL||','||acct_CRNCY_CODE||','||amount||','||'TRUE' ||','||'TRUE' ||','|| rate||','|| null ||','|| null ||','|| null  ||','|| null ||','||null ||','||'ACT/360' ||','||'MOD_FOLLOW' ||','|| 'ZC' ||','|| NULL ||','||NULL ||','||NULL ||','||NULL  ||','|| NULL ||','|| NULL ||','||
-HOLIDAY_CALENDAR ||','||HOLIDAY_CALENDAR  ||','||'NEAREST' ||','|| 'NEAREST' ||','||8 ||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL ||','|| NULL ||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| 'Finacle_Liquidity'||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL ||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL data
+SELECT CAST (
+'NEW'   ||','||foracid || event ||','||NULL ||','|| 'FINACLE_CBS_COUNTERPARTY' ||','||'CBS_LOANS_DEPOSITS' ||','||TO_CHAR(ACCT_OPN_DATE, 'YYYYMMDD') ||','||'Finacle' ||','|| 'Finacle' ||','||'Bullect Fixed' ||','||'StructuredFlows' ||','||null ||','|| null ||','||'FIXED' ||','||'PAY' ||','||TO_CHAR(ACCT_OPN_DATE, 'YYYYMMDD')||','||TO_CHAR(Enddate, 'YYYYMMDD')||','||NULL||','||NULL||','||NULL||','||acct_CRNCY_CODE||','||amount||','||'TRUE' ||','||'TRUE' ||','|| rate||','|| null ||','|| null ||','|| null  ||','|| null ||','||null ||','||'ACT/360' ||','||'MOD_FOLLOW' ||','|| 'ZC' ||','|| NULL ||','||NULL ||','||NULL ||','||NULL  ||','|| NULL ||','|| NULL ||','||
+HOLIDAY_CALENDAR ||','||HOLIDAY_CALENDAR  ||','||'NEAREST' ||','|| 'NEAREST' ||','||8 ||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL ||','|| NULL ||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| 'Finacle_Liquidity'||','||FINACLECPTYCIFID ||','|| REPLACE(FINACLECPTYNAME, ',', '-')  ||','|| FINACLECPTYTYPE ||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL ||','|| NULL||','|| NULL||','|| NULL||','|| NULL||','|| NULL as VARCHAR2(4000 CHAR))   data
 
 FROM (
   SELECT *
@@ -218,4 +237,3 @@ UNPIVOT (
     PENAL_INT_OUTS AS '_PIDEM_OVERDUE'
   )
 ) ORDER BY 1 
-
